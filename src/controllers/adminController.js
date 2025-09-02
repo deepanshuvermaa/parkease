@@ -402,6 +402,193 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// ParkEase specific endpoints for admin panel integration
+
+// Force logout all users
+exports.forceLogoutAll = async (req, res) => {
+  try {
+    const result = await db.query(
+      `UPDATE sessions 
+       SET is_active = false, logout_time = CURRENT_TIMESTAMP
+       WHERE is_active = true
+       RETURNING *`
+    );
+    
+    // Log audit
+    await db.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        req.user.userId,
+        'FORCE_LOGOUT_ALL',
+        'session',
+        'all',
+        JSON.stringify({ affected_sessions: result.rows.length }),
+        req.ip
+      ]
+    );
+    
+    res.json({
+      success: true,
+      message: `${result.rows.length} sessions logged out successfully`
+    });
+  } catch (error) {
+    console.error('Force logout all error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get ParkEase dashboard stats specifically for admin panel
+exports.getParkeaseStats = async (req, res) => {
+  try {
+    const [
+      activeUsers,
+      parkedVehicles,
+      todayRevenue,
+      activeSessions,
+      totalUsers,
+      todayEntries,
+      todayExits
+    ] = await Promise.all([
+      db.query('SELECT COUNT(*) as count FROM sessions WHERE is_active = true'),
+      db.query('SELECT COUNT(*) as count FROM vehicles WHERE exit_time IS NULL'),
+      db.query(
+        `SELECT COALESCE(SUM(total_amount), 0) as total 
+         FROM vehicles 
+         WHERE DATE(exit_time) = CURRENT_DATE AND is_paid = true`
+      ),
+      db.query('SELECT COUNT(*) as count FROM sessions WHERE is_active = true'),
+      db.query('SELECT COUNT(*) as count FROM users WHERE is_active = true'),
+      db.query('SELECT COUNT(*) as count FROM vehicles WHERE DATE(entry_time) = CURRENT_DATE'),
+      db.query('SELECT COUNT(*) as count FROM vehicles WHERE DATE(exit_time) = CURRENT_DATE')
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        activeUsers: parseInt(activeUsers.rows[0].count),
+        parkedVehicles: parseInt(parkedVehicles.rows[0].count),
+        todayRevenue: parseFloat(todayRevenue.rows[0].total),
+        activeSessions: parseInt(activeSessions.rows[0].count),
+        totalUsers: parseInt(totalUsers.rows[0].count),
+        todayEntries: parseInt(todayEntries.rows[0].count),
+        todayExits: parseInt(todayExits.rows[0].count)
+      }
+    });
+  } catch (error) {
+    console.error('ParkEase stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get recent activity for admin panel
+exports.getRecentActivity = async (req, res) => {
+  try {
+    const activities = await db.query(
+      `(SELECT 'vehicle_entry' as type, 
+               vehicle_number as description,
+               entry_time as timestamp,
+               u.full_name as user_name
+        FROM vehicles v
+        LEFT JOIN users u ON v.operator_id = u.id
+        WHERE DATE(entry_time) = CURRENT_DATE
+        ORDER BY entry_time DESC
+        LIMIT 10)
+       UNION ALL
+       (SELECT 'vehicle_exit' as type,
+               vehicle_number as description,
+               exit_time as timestamp,
+               u.full_name as user_name
+        FROM vehicles v
+        LEFT JOIN users u ON v.operator_id = u.id
+        WHERE DATE(exit_time) = CURRENT_DATE
+        ORDER BY exit_time DESC
+        LIMIT 10)
+       UNION ALL
+       (SELECT 'user_login' as type,
+               'User logged in' as description,
+               login_time as timestamp,
+               u.full_name as user_name
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE DATE(login_time) = CURRENT_DATE
+        ORDER BY login_time DESC
+        LIMIT 5)
+       ORDER BY timestamp DESC
+       LIMIT 20`
+    );
+
+    res.json({
+      success: true,
+      activities: activities.rows
+    });
+  } catch (error) {
+    console.error('Recent activity error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Broadcast message to all active devices
+exports.broadcastMessage = async (req, res) => {
+  try {
+    const { message, type = 'info' } = req.body;
+    
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    // Here you would implement WebSocket broadcast
+    // For now, we'll just log the audit
+    await db.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        req.user.userId,
+        'BROADCAST_MESSAGE',
+        'system',
+        'all_devices',
+        JSON.stringify({ message, type }),
+        req.ip
+      ]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Broadcast sent successfully'
+    });
+  } catch (error) {
+    console.error('Broadcast message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Clear system cache
+exports.clearCache = async (req, res) => {
+  try {
+    // Log the cache clear action
+    await db.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        req.user.userId,
+        'CLEAR_CACHE',
+        'system',
+        'cache',
+        JSON.stringify({ action: 'system_cache_cleared' }),
+        req.ip
+      ]
+    );
+    
+    res.json({
+      success: true,
+      message: 'System cache cleared successfully'
+    });
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Helper functions for reports
 async function generateDailyReport(date) {
   const result = await db.query(

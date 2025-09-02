@@ -20,6 +20,7 @@ router.delete('/users/:userId', adminController.deleteUser);
 // Device management
 router.get('/devices', adminController.getActiveDevices);
 router.post('/force-logout', adminController.forceLogout);
+router.post('/force-logout-all', adminController.forceLogoutAll);
 
 // System settings
 router.get('/settings', adminController.getSettings);
@@ -27,5 +28,11 @@ router.put('/settings', adminController.updateSettings);
 
 // Audit logs
 router.get('/audit-logs', adminController.getAuditLogs);
+
+// ParkEase specific endpoints for admin panel
+router.get('/parkease/stats', adminController.getParkeaseStats);
+router.get('/parkease/activity', adminController.getRecentActivity);
+router.post('/parkease/broadcast', adminController.broadcastMessage);
+router.post('/parkease/clear-cache', adminController.clearCache);
 
 module.exports = router;
