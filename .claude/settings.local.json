@@ -17,7 +17,10 @@
       "Bash(\"C:\\Users\\Asus\\flutter_sdk\\flutter\\bin\\flutter.bat\" --version)",
       "Bash(\"C:\\Users\\Asus\\flutter_sdk\\flutter\\bin\\flutter.bat\" clean)",
       "Bash(\"C:\\Users\\Asus\\flutter_sdk\\flutter\\bin\\flutter.bat\" build apk --debug)",
-      "Bash(cmd /c java:*)"
+      "Bash(cmd /c java:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

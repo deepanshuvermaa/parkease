@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs-18_x"]
+
+[phases.install]
+cmds = ["npm install --prefix backend"]
+
+[start]
+cmd = "npm start --prefix backend"
+
+[providers]
+node = true

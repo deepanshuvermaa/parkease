@@ -1,13 +1,14 @@
 {
-  "name": "parkease-deployment",
+  "name": "parkease-backend",
   "version": "1.0.0",
-  "description": "ParkEase backend deployment wrapper",
+  "description": "ParkEase backend API",
+  "main": "backend/server.js",
   "scripts": {
-    "install": "cd backend && npm install",
-    "start": "cd backend && npm start",
-    "build": "cd backend && npm install"
+    "postinstall": "npm install --prefix backend",
+    "start": "npm start --prefix backend"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "dependencies": {}
 }
