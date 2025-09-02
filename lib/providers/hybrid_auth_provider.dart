@@ -182,7 +182,7 @@ class HybridAuthProvider extends ChangeNotifier {
           );
           
           // Store in local database for offline access
-          await _dbHelper.createUser(user, password);
+          await _dbHelper.createUser(user);
         }
       } else {
         // Offline mode - use local database
@@ -239,7 +239,7 @@ class HybridAuthProvider extends ChangeNotifier {
           );
           
           // Store in local database
-          await _dbHelper.createUser(user, 'guest');
+          await _dbHelper.createUser(user);
         }
       } else {
         // Offline guest signup
@@ -258,7 +258,7 @@ class HybridAuthProvider extends ChangeNotifier {
           trialEndDate: trialEnd,
         );
         
-        await _dbHelper.createUser(user, 'guest');
+        await _dbHelper.createUser(user);
       }
       
       if (user != null) {

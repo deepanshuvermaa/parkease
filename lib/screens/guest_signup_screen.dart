@@ -50,10 +50,9 @@ class _GuestSignupScreenState extends State<GuestSignupScreen> {
     });
 
     final authProvider = context.read<HybridAuthProvider>();
-    final result = await authProvider.signupAsGuest(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      fullName: _fullNameController.text.trim(),
+    final result = await authProvider.guestSignup(
+      _emailController.text.trim(),
+      _fullNameController.text.trim(),
     );
 
     if (mounted) {
@@ -61,7 +60,7 @@ class _GuestSignupScreenState extends State<GuestSignupScreen> {
         _isLoading = false;
       });
 
-      if (result['success']) {
+      if (result) {
         // Show success dialog with trial information
         await showDialog(
           context: context,
@@ -147,7 +146,7 @@ class _GuestSignupScreenState extends State<GuestSignupScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Failed to create account'),
+            content: const Text('Failed to create account'),
             backgroundColor: AppColors.error,
           ),
         );

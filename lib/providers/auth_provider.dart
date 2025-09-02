@@ -98,32 +98,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // DEMO MODE - Remove this in production
-      if (username == 'demo' && password == 'demo123') {
-        _currentUser = User(
-          id: 'demo_user',
-          username: 'demo',
-          password: '',
-          fullName: 'Demo User',
-          role: 'admin',
-          isActive: true,
-          createdAt: DateTime.now(),
-        );
-        _isAuthenticated = true;
-        
-        if (rememberMe) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userId', _currentUser!.id);
-          await prefs.setString('username', _currentUser!.username);
-          await prefs.setString('fullName', _currentUser!.fullName);
-          await prefs.setString('role', _currentUser!.role);
-          await prefs.setBool('rememberMe', true);
-        }
-        
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
       
       // Normal database authentication
       final user = await _dbHelper.authenticateUser(username, password, deviceId: _deviceId);

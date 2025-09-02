@@ -63,7 +63,7 @@ class MigrationService {
   static Future<bool> _hasExistingLocalData() async {
     final dbHelper = DatabaseHelper();
     try {
-      final vehicles = await dbHelper.getVehicles();
+      final vehicles = await dbHelper.getActiveVehicles();
       return vehicles.isNotEmpty;
     } catch (e) {
       return false;
@@ -75,13 +75,14 @@ class MigrationService {
     
     try {
       // Get all local vehicles
-      final localVehicles = await dbHelper.getVehicles();
+      final localVehicles = await dbHelper.getActiveVehicles();
       
       if (localVehicles.isNotEmpty) {
         print('📤 Syncing ${localVehicles.length} local vehicles to backend...');
         
-        // Send to backend
-        final success = await ApiService.syncVehicles(localVehicles);
+        // Convert to Vehicle objects and send to backend
+        final vehicles = localVehicles.map((v) => Vehicle.fromJson(v)).toList();
+        final success = await ApiService.syncVehicles(vehicles);
         
         if (success) {
           print('✅ Local data synced successfully');

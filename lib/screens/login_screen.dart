@@ -260,54 +260,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Default credentials info
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    size: 16,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Demo Credentials',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Username: demo\nPassword: demo123',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '(For testing without database)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.blue.shade500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),

@@ -24,7 +24,15 @@
       "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
       "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
       "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
-      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)"
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Bash(git remote set-url:*)",
+      "Bash(git fetch:*)",
+      "Read(C:\\Users\\Asus\\Quickbill/**)",
+      "Bash(git init:*)",
+      "Bash(copy:*)",
+      "Bash(git remote add:*)",
+      "Bash(git config:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
