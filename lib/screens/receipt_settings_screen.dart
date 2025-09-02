@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import '../models/enhanced_business_settings.dart';
 import '../models/ticket_id_settings.dart';
 import '../models/print_customization.dart';
@@ -48,6 +50,10 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
   // Receipt Footer
   final _receiptFooterController = TextEditingController();
   bool _showQrCode = false;
+  
+  // Logo
+  String? _logoBase64;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -93,6 +99,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
       // Load Receipt Footer
       _receiptFooterController.text = settings.receiptFooter;
       _showQrCode = settings.showQrCode;
+      
+      // Load Logo
+      _logoBase64 = settings.logoPath;
     }
   }
 
@@ -116,7 +125,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
           tabs: const [
             Tab(text: 'Ticket ID'),
             Tab(text: 'Font Sizes'),
-            Tab(text: 'Footer'),
+            Tab(text: 'Header & Footer'),
           ],
         ),
       ),
@@ -425,6 +434,101 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Logo Section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Company Logo',
+                    style: TextStyle(
+                      fontSize: AppFontSize.lg,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 200,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: _logoBase64 != null && _logoBase64!.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                  child: Image.memory(
+                                    base64Decode(_logoBase64!),
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image_outlined,
+                                      size: 40,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No logo selected',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: AppFontSize.sm,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _pickImage,
+                              icon: const Icon(Icons.upload_file),
+                              label: const Text('Upload Logo'),
+                            ),
+                            if (_logoBase64 != null && _logoBase64!.isNotEmpty) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _logoBase64 = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.clear, color: Colors.red),
+                                label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Recommended: 200x100px, PNG or JPG',
+                          style: TextStyle(
+                            fontSize: AppFontSize.xs,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: AppSpacing.md),
+          
+          // Footer Section
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -554,6 +658,33 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 400,
+        maxHeight: 200,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _logoBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   String _getPreviewTicketId() {
     String prefix = _prefixController.text.isNotEmpty ? _prefixController.text : 'T';
     
@@ -631,6 +762,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen>
         receiptFooter: _receiptFooterController.text.isNotEmpty 
             ? _receiptFooterController.text 
             : 'Thank you for choosing us!',
+        logoPath: _logoBase64,
         ticketIdSettings: ticketIdSettings,
         printCustomization: printCustomization,
         customVehicleTypes: currentSettings is EnhancedBusinessSettings 

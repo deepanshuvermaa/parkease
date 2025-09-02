@@ -1,4 +1,6 @@
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/vehicle.dart';
 import '../models/business_settings.dart';
 import '../models/enhanced_business_settings.dart';
@@ -69,18 +71,53 @@ class ESCPOSCommands {
     return qr;
   }
 
+  static String generateLogoCommands(String? logoBase64) {
+    if (logoBase64 == null || logoBase64.isEmpty) return '';
+    
+    try {
+      // Convert base64 to bytes
+      final Uint8List bytes = base64Decode(logoBase64);
+      
+      // ESC/POS commands for printing image
+      // This is simplified - actual implementation would need proper image processing
+      String commands = '';
+      commands += ALIGN_CENTER;  // Center the logo
+      
+      // Note: Actual thermal printer logo printing requires:
+      // 1. Converting image to monochrome bitmap
+      // 2. Resizing to printer width (typically 384 or 576 pixels)
+      // 3. Converting to ESC/POS raster format
+      // This is a placeholder that would need proper implementation
+      
+      // For now, we'll just add some spacing
+      commands += NEW_LINE;
+      
+      return commands;
+    } catch (e) {
+      return ''; // Return empty if logo processing fails
+    }
+  }
+  
   static String formatReceipt(Vehicle vehicle, BusinessSettings settings) {
     // Get print customization settings if available
     PrintCustomization? printCustom;
     ParkingCharges? parkingCharges;
+    String? logoPath;
     
     if (settings is EnhancedBusinessSettings) {
       printCustom = settings.printCustomization;
       parkingCharges = settings.parkingCharges;
+      logoPath = settings.logoPath;
     }
     printCustom ??= PrintCustomization();
     
     String receipt = INIT;
+    
+    // Logo Header (if available)
+    if (logoPath != null && logoPath.isNotEmpty) {
+      receipt += generateLogoCommands(logoPath);
+      receipt += NEW_LINE;
+    }
     
     // Business Header
     receipt += printCustom.centerAlign ? ALIGN_CENTER : ALIGN_LEFT;
@@ -237,6 +274,12 @@ class ESCPOSCommands {
   
   static String formatTestReceipt(BusinessSettings settings) {
     String receipt = INIT;
+    
+    // Add logo if available
+    if (settings is EnhancedBusinessSettings && settings.logoPath != null && settings.logoPath!.isNotEmpty) {
+      receipt += generateLogoCommands(settings.logoPath);
+      receipt += NEW_LINE;
+    }
     
     receipt += ALIGN_CENTER;
     receipt += FONT_SIZE_LARGE;
