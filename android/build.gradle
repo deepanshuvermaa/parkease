@@ -1,0 +1,57 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    
+    // Force all subprojects to use the same SDK versions to fix lStar attribute error
+    subprojects {
+        afterEvaluate { subproject ->
+            if (subproject.plugins.hasPlugin("com.android.library") || 
+                subproject.plugins.hasPlugin("com.android.application")) {
+                subproject.android {
+                    compileSdkVersion 34
+                    
+                    // Fix namespace specifically for flutter_bluetooth_serial
+                    if (subproject.name == "flutter_bluetooth_serial") {
+                        namespace = "io.github.edufolly.flutterbluetoothserial"
+                    }
+                    
+                    // Ensure all projects use compatible Java versions
+                    compileOptions {
+                        sourceCompatibility JavaVersion.VERSION_1_8
+                        targetCompatibility JavaVersion.VERSION_1_8
+                    }
+                    
+                    // Set default config for libraries
+                    if (subproject.plugins.hasPlugin("com.android.library")) {
+                        defaultConfig {
+                            minSdkVersion 23
+                            targetSdkVersion 34
+                        }
+                    }
+                }
+                
+                // Force Kotlin JVM target for ALL projects
+                // This must be outside android block to apply to Kotlin projects
+                tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                    kotlinOptions {
+                        jvmTarget = "1.8"
+                    }
+                }
+            }
+        }
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
