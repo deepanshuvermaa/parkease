@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../providers/vehicle_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/bluetooth_provider.dart';
+import '../providers/hybrid_auth_provider.dart';
 import '../utils/constants.dart';
 import '../utils/helpers.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/action_card.dart';
+import '../widgets/connectivity_indicator.dart';
 import 'vehicle_entry_screen.dart';
 import 'parking_queue_screen.dart';
 import 'vehicle_exit_screen.dart';
@@ -17,7 +19,6 @@ import 'vehicle_types_management_screen.dart';
 import 'advanced_settings_screen.dart';
 import 'user_management_screen.dart';
 import 'login_screen.dart';
-import '../providers/auth_provider.dart';
 import 'subscription_screen.dart';
 import 'receipt_settings_screen.dart';
 
@@ -50,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   
   void _checkTrialStatus() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = context.read<AuthProvider>();
+      final authProvider = context.read<HybridAuthProvider>();
       
       // Check if guest user with expired trial
       if (authProvider.isGuest && !authProvider.canAccess) {
@@ -87,7 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (!mounted) return;
               
               try {
-                await context.read<AuthProvider>().logout();
+                await context.read<HybridAuthProvider>().logout();
                 if (mounted) {
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -123,7 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
   
   void _showTrialEndingSoonBanner() {
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = context.read<HybridAuthProvider>();
     ScaffoldMessenger.of(context).showMaterialBanner(
       MaterialBanner(
         backgroundColor: Colors.orange.shade50,
@@ -173,6 +174,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
         actions: [
+          const ConnectivityIndicator(),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => _showSettingsMenu(context),
@@ -189,6 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const ConnectivityBanner(),
               _buildGreeting(),
               const SizedBox(height: AppSpacing.lg),
               _buildStatsGrid(),
@@ -483,7 +487,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _showBackupDialog(context);
               },
             ),
-            if (context.read<AuthProvider>().isAdmin)
+            if (context.read<HybridAuthProvider>().isAdmin)
               ListTile(
                 leading: const Icon(Icons.people),
                 title: const Text('User Management'),
@@ -493,13 +497,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _navigateToScreen(context, const UserManagementScreen());
                 },
               ),
-            if (context.read<AuthProvider>().isGuest)
+            if (context.read<HybridAuthProvider>().isGuest)
               ListTile(
                 leading: const Icon(Icons.credit_card, color: AppColors.primary),
                 title: const Text('Subscription', style: TextStyle(color: AppColors.primary)),
                 subtitle: Text(
-                  context.read<AuthProvider>().canAccess
-                      ? 'Trial: ${context.read<AuthProvider>().remainingTrialDays} days left'
+                  context.read<HybridAuthProvider>().canAccess
+                      ? 'Trial: ${context.read<HybridAuthProvider>().remainingTrialDays} days left'
                       : 'Subscribe to continue',
                   style: const TextStyle(fontSize: 12),
                 ),
@@ -513,7 +517,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout', style: TextStyle(color: Colors.red)),
               subtitle: Text(
-                'Logged in as: ${context.read<AuthProvider>().currentUser?.fullName ?? "User"}',
+                'Logged in as: ${context.read<HybridAuthProvider>().currentUser?.fullName ?? "User"}',
                 style: const TextStyle(fontSize: 12),
               ),
               onTap: () async {
@@ -558,7 +562,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                   
                   try {
-                    await context.read<AuthProvider>().logout();
+                    await context.read<HybridAuthProvider>().logout();
                     
                     if (context.mounted) {
                       // Close loading indicator

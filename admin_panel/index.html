@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParkEase Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .loading { opacity: 0.6; pointer-events: none; }
+        .online { color: #10b981; }
+        .offline { color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">ParkEase Admin Panel</h1>
+            <div class="flex items-center space-x-4">
+                <div id="connectionStatus" class="flex items-center space-x-2">
+                    <div id="statusDot" class="w-3 h-3 rounded-full"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <button id="refreshBtn" class="bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded">
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-6">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Active Users</h3>
+                <p id="activeUsers" class="text-3xl font-bold text-blue-600">-</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Parked Vehicles</h3>
+                <p id="parkedVehicles" class="text-3xl font-bold text-green-600">-</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Today's Revenue</h3>
+                <p id="todayRevenue" class="text-3xl font-bold text-purple-600">₹-</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Active Sessions</h3>
+                <p id="activeSessions" class="text-3xl font-bold text-orange-600">-</p>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Active Sessions -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">Active Sessions</h2>
+                <div id="sessionsTable">
+                    <div class="text-center py-8 text-gray-500">Loading sessions...</div>
+                </div>
+            </div>
+
+            <!-- System Controls -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">System Controls</h2>
+                <div class="space-y-4">
+                    <button id="forceLogoutAll" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                        Force Logout All Users
+                    </button>
+                    <button id="syncData" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                        Force Data Sync
+                    </button>
+                    <button id="clearCache" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                        Clear System Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="mt-8 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">Recent Activity</h2>
+            <div id="activityLog">
+                <div class="text-center py-8 text-gray-500">Loading activity...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'https://parkease-backend-production.up.railway.app';
+        // For local development: 'http://localhost:3000'
+        
+        let isOnline = false;
+        let refreshInterval;
+
+        // DOM Elements
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            setupEventListeners();
+            startAutoRefresh();
+        });
+
+        function setupEventListeners() {
+            refreshBtn.addEventListener('click', loadDashboardData);
+            document.getElementById('forceLogoutAll').addEventListener('click', forceLogoutAll);
+            document.getElementById('syncData').addEventListener('click', forceSyncData);
+            document.getElementById('clearCache').addEventListener('click', clearCache);
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                checkConnection();
+                if (isOnline) {
+                    loadDashboardData();
+                }
+            }, 30000); // Refresh every 30 seconds
+        }
+
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    setOnlineStatus(true);
+                    if (!document.querySelector('.data-loaded')) {
+                        loadDashboardData();
+                    }
+                } else {
+                    setOnlineStatus(false);
+                }
+            } catch (error) {
+                setOnlineStatus(false);
+            }
+        }
+
+        function setOnlineStatus(online) {
+            isOnline = online;
+            if (online) {
+                statusDot.className = 'w-3 h-3 rounded-full bg-green-500';
+                statusText.textContent = 'Online';
+                statusText.className = 'online';
+            } else {
+                statusDot.className = 'w-3 h-3 rounded-full bg-yellow-500';
+                statusText.textContent = 'Offline';
+                statusText.className = 'offline';
+            }
+        }
+
+        async function loadDashboardData() {
+            if (!isOnline) return;
+
+            try {
+                // Load stats
+                const statsResponse = await fetch(`${API_BASE_URL}/api/admin/dashboard`);
+                if (statsResponse.ok) {
+                    const stats = await statsResponse.json();
+                    updateStats(stats);
+                }
+
+                // Load active sessions
+                const sessionsResponse = await fetch(`${API_BASE_URL}/api/admin/devices`);
+                if (sessionsResponse.ok) {
+                    const sessions = await sessionsResponse.json();
+                    updateSessions(sessions);
+                }
+
+                document.body.classList.add('data-loaded');
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('activeUsers').textContent = stats.activeUsers || 0;
+            document.getElementById('parkedVehicles').textContent = stats.parkedVehicles || 0;
+            document.getElementById('todayRevenue').textContent = `₹${stats.todayRevenue || 0}`;
+            document.getElementById('activeSessions').textContent = stats.activeSessions || 0;
+        }
+
+        function updateSessions(sessions) {
+            const table = document.getElementById('sessionsTable');
+            
+            if (!sessions.length) {
+                table.innerHTML = '<div class="text-center py-8 text-gray-500">No active sessions</div>';
+                return;
+            }
+
+            let tableHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left">User</th>
+                                <th class="px-4 py-2 text-left">Device</th>
+                                <th class="px-4 py-2 text-left">Last Activity</th>
+                                <th class="px-4 py-2 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            sessions.forEach(session => {
+                tableHTML += `
+                    <tr class="border-t">
+                        <td class="px-4 py-2">${session.username}</td>
+                        <td class="px-4 py-2">${session.deviceName || session.deviceId}</td>
+                        <td class="px-4 py-2">${new Date(session.lastActivity).toLocaleString()}</td>
+                        <td class="px-4 py-2">
+                            <button onclick="forceLogout('${session.userId}', '${session.deviceId}')" 
+                                    class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                Logout
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table></div>';
+            table.innerHTML = tableHTML;
+        }
+
+        async function forceLogout(userId, deviceId) {
+            if (!confirm('Are you sure you want to force logout this user?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/force-logout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, deviceId })
+                });
+
+                if (response.ok) {
+                    showNotification('User logged out successfully', 'success');
+                    loadDashboardData();
+                } else {
+                    showNotification('Failed to logout user', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function forceLogoutAll() {
+            if (!confirm('Are you sure you want to force logout ALL users? This cannot be undone.')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/force-logout-all`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showNotification('All users logged out successfully', 'success');
+                    loadDashboardData();
+                } else {
+                    showNotification('Failed to logout all users', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function forceSyncData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/sync-data`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showNotification('Data sync completed successfully', 'success');
+                } else {
+                    showNotification('Failed to sync data', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function clearCache() {
+            if (!confirm('Are you sure you want to clear system cache?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/clear-cache`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showNotification('Cache cleared successfully', 'success');
+                } else {
+                    showNotification('Failed to clear cache', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded shadow-lg text-white z-50 ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

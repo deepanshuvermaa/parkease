@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/hybrid_auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/loading_button.dart';
 import 'dashboard_screen.dart';
@@ -49,7 +49,7 @@ class _GuestSignupScreenState extends State<GuestSignupScreen> {
       _isLoading = true;
     });
 
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = context.read<HybridAuthProvider>();
     final result = await authProvider.signupAsGuest(
       email: _emailController.text.trim(),
       password: _passwordController.text,

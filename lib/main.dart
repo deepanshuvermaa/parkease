@@ -4,13 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'providers/vehicle_provider.dart';
 import 'providers/bluetooth_provider.dart';
 import 'providers/settings_provider.dart';
-import 'providers/auth_provider.dart';
+import 'providers/hybrid_auth_provider.dart';
+import 'services/migration_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'utils/constants.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Check and run migration if needed
+  final migrationCompleted = await MigrationService.isMigrationCompleted();
+  if (!migrationCompleted) {
+    await MigrationService.migrateToHybridSystem();
+  }
+  
   runApp(const ParkEaseApp());
 }
 
@@ -21,7 +29,7 @@ class ParkEaseApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => HybridAuthProvider()),
         ChangeNotifierProvider(create: (_) => VehicleProvider()),
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
@@ -89,7 +97,7 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
+    return Consumer<HybridAuthProvider>(
       builder: (context, authProvider, _) {
         if (authProvider.isLoading) {
           return const Scaffold(

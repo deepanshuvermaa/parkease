@@ -20,7 +20,11 @@
       "Bash(cmd /c java:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/hybrid_auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/loading_button.dart';
 import 'dashboard_screen.dart';
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = context.read<HybridAuthProvider>();
     final success = await authProvider.login(
       _usernameController.text.trim(),
       _passwordController.text,
