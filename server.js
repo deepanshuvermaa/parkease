@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const compression = require('compression');
 const http = require('http');
 const socketIO = require('socket.io');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./src/routes/auth');
@@ -15,6 +17,7 @@ const settingsRoutes = require('./src/routes/settings');
 const { initializeWebSocket } = require('./src/services/websocket');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { rateLimiter } = require('./src/middleware/rateLimiter');
+const pool = require('./src/config/database');
 
 const app = express();
 const server = http.createServer(app);
@@ -76,8 +79,49 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
+// Initialize database on startup
+async function initializeDatabase() {
+  try {
+    // Check if tables exist
+    const result = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `);
+    
+    if (!result.rows[0].exists) {
+      console.log('📦 Database tables not found. Creating...');
+      
+      // Read and execute schema
+      const schemaPath = path.join(__dirname, 'src', 'utils', 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        await pool.query(schema);
+        console.log('✅ Database tables created successfully');
+        
+        // Run seed script for demo data
+        const seedScript = require('./src/utils/seed');
+        await seedScript();
+        console.log('🌱 Demo data seeded successfully');
+      } else {
+        console.error('❌ Schema file not found');
+      }
+    } else {
+      console.log('✅ Database tables already exist');
+    }
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+  }
+}
+
+// Start server and initialize database
+server.listen(PORT, async () => {
   console.log(`🚀 ParkEase Backend running on port ${PORT}`);
   console.log(`📡 WebSocket server initialized`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Initialize database
+  await initializeDatabase();
 });

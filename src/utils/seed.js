@@ -70,4 +70,9 @@ async function seed() {
   }
 }
 
-seed();
+// Export for use in server.js or run directly
+if (require.main === module) {
+  seed();
+}
+
+module.exports = seed;
