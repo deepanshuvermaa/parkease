@@ -1,0 +1,13 @@
+{
+  "name": "parkease-deployment",
+  "version": "1.0.0",
+  "description": "ParkEase backend deployment wrapper",
+  "scripts": {
+    "install": "cd backend && npm install",
+    "start": "cd backend && npm start",
+    "build": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
