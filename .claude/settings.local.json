@@ -32,7 +32,8 @@
       "Bash(copy:*)",
       "Bash(git remote add:*)",
       "Bash(git config:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

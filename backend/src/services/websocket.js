@@ -199,3 +199,84 @@ async function getRealtimeStats() {
     };
   }
 }
+
+// Export function to send notifications to specific users
+exports.notifyUser = (userId, notification) => {
+  const io = global.io;
+  if (io) {
+    io.to(`user_${userId}`).emit('notification', notification);
+    console.log(`Notification sent to user ${userId}:`, notification.type);
+  }
+};
+
+// Export function to notify all admins
+exports.notifyAdmins = (notification) => {
+  const io = global.io;
+  if (io) {
+    io.to('admins').emit('admin_notification', notification);
+    console.log('Admin notification sent:', notification.type);
+  }
+};
+
+// Queue and process notifications
+exports.queueNotification = async (userId, type, title, message, data = {}) => {
+  try {
+    await db.query(
+      `INSERT INTO notification_queue 
+       (user_id, notification_type, title, message, data)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, type, title, message, JSON.stringify(data)]
+    );
+    
+    // Try to send immediately if user is online
+    const io = global.io;
+    if (io) {
+      const notification = { type, title, message, data };
+      io.to(`user_${userId}`).emit('notification', notification);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Queue notification error:', error);
+    return false;
+  }
+};
+
+// Process pending notifications (call this periodically)
+exports.processPendingNotifications = async () => {
+  try {
+    const pendingNotifications = await db.query(
+      `SELECT * FROM notification_queue 
+       WHERE sent = false AND scheduled_for <= CURRENT_TIMESTAMP
+       ORDER BY scheduled_for ASC
+       LIMIT 100`
+    );
+    
+    const io = global.io;
+    if (!io) return;
+    
+    for (const notification of pendingNotifications.rows) {
+      try {
+        // Send notification
+        io.to(`user_${notification.user_id}`).emit('notification', {
+          type: notification.notification_type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data
+        });
+        
+        // Mark as sent
+        await db.query(
+          'UPDATE notification_queue SET sent = true, sent_at = CURRENT_TIMESTAMP WHERE id = $1',
+          [notification.id]
+        );
+        
+        console.log(`Sent notification ${notification.id} to user ${notification.user_id}`);
+      } catch (error) {
+        console.error(`Failed to send notification ${notification.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Process notifications error:', error);
+  }
+};

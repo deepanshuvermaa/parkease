@@ -307,4 +307,79 @@ class ApiService {
       return false;
     }
   }
+
+  // Subscription Management APIs
+  static Future<Map<String, dynamic>?> getUserSubscriptionStatus(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users/$userId/subscription-status'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['subscription'];
+      }
+      return null;
+    } catch (e) {
+      print('Get subscription status error: $e');
+      return null;
+    }
+  }
+
+  // Sync user trial/subscription status
+  static Future<Map<String, dynamic>?> syncUserStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users/sync-status'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      }
+      return null;
+    } catch (e) {
+      print('Sync user status error: $e');
+      return null;
+    }
+  }
+
+  // Check for pending notifications
+  static Future<List<Map<String, dynamic>>> getPendingNotifications() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users/notifications'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['notifications']);
+      }
+      return [];
+    } catch (e) {
+      print('Get notifications error: $e');
+      return [];
+    }
+  }
+
+  // Mark notifications as read
+  static Future<bool> markNotificationsRead(List<String> notificationIds) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/users/notifications/mark-read'),
+        headers: _headers,
+        body: json.encode({
+          'notificationIds': notificationIds,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Mark notifications read error: $e');
+      return false;
+    }
+  }
 }

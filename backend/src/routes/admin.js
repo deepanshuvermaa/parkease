@@ -17,6 +17,12 @@ router.get('/users', adminController.getUsers);
 router.put('/users/:userId/status', adminController.updateUserStatus);
 router.delete('/users/:userId', adminController.deleteUser);
 
+// Subscription management
+router.post('/users/:userId/extend-subscription', adminController.extendSubscription);
+router.get('/users/:userId/subscription-history', adminController.getSubscriptionHistory);
+router.post('/users/:userId/backup', adminController.backupUserData);
+router.get('/expiring-subscriptions', adminController.getExpiringSubscriptions);
+
 // Device management
 router.get('/devices', adminController.getActiveDevices);
 router.post('/force-logout', adminController.forceLogout);

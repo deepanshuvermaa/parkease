@@ -318,6 +318,100 @@ class HybridAuthProvider extends ChangeNotifier {
     await _checkBackendConnectivity();
     if (_isOnline && _currentUser != null) {
       await _syncWithBackend();
+      await _syncUserStatus();
+      await _checkPendingNotifications();
+    }
+  }
+
+  // Sync user status with backend
+  Future<void> _syncUserStatus() async {
+    if (!_isOnline || _currentUser == null) return;
+    
+    try {
+      final syncResult = await ApiService.syncUserStatus();
+      if (syncResult != null) {
+        final user = syncResult['user'];
+        final statusChanged = syncResult['statusChanged'] ?? false;
+        final newStatus = syncResult['newStatus'];
+        
+        if (statusChanged) {
+          // Update current user with fresh data
+          _currentUser = User.fromJson(user);
+          
+          // Handle status changes
+          if (newStatus == 'expired' && _isAuthenticated) {
+            // User trial/subscription expired
+            await logout();
+            _showExpirationNotification();
+          } else if (newStatus == 'extended') {
+            // User subscription was extended
+            _showExtensionNotification();
+          }
+          
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Sync user status error: $e');
+    }
+  }
+
+  // Check for pending notifications
+  Future<void> _checkPendingNotifications() async {
+    if (!_isOnline || _currentUser == null) return;
+    
+    try {
+      final notifications = await ApiService.getPendingNotifications();
+      if (notifications.isNotEmpty) {
+        // Show notifications to user
+        for (final notification in notifications) {
+          _showInAppNotification(notification);
+        }
+        
+        // Mark notifications as read
+        final notificationIds = notifications
+            .map((n) => n['id'].toString())
+            .toList();
+        await ApiService.markNotificationsRead(notificationIds);
+      }
+    } catch (e) {
+      debugPrint('Check notifications error: $e');
+    }
+  }
+
+  // Show expiration notification
+  void _showExpirationNotification() {
+    // This would typically show a dialog or snackbar
+    // For now, we'll just print to debug
+    debugPrint('🚫 Trial/Subscription has expired');
+  }
+
+  // Show extension notification
+  void _showExtensionNotification() {
+    debugPrint('✅ Subscription has been extended');
+  }
+
+  // Show in-app notification
+  void _showInAppNotification(Map<String, dynamic> notification) {
+    final type = notification['notification_type'];
+    final title = notification['title'];
+    final message = notification['message'];
+    
+    debugPrint('📱 Notification: $title - $message');
+    
+    // Handle specific notification types
+    switch (type) {
+      case 'TRIAL_EXPIRING_SOON':
+      case 'TRIAL_EXPIRING_FINAL':
+        // Show trial expiring dialog
+        break;
+      case 'SUBSCRIPTION_EXTENDED':
+        // Show success message
+        break;
+      case 'TRIAL_EXPIRED':
+        // Force logout
+        logout();
+        break;
     }
   }
 }

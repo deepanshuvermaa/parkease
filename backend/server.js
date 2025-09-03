@@ -63,8 +63,27 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/settings', settingsRoutes);
 
+// Make io globally available
+global.io = io;
+
 // Initialize WebSocket
 initializeWebSocket(io);
+
+// Start notification processor (every 2 minutes)
+const { processPendingNotifications } = require('./src/services/websocket');
+const { checkExpiringSubscriptions, processExpiredUsers } = require('./src/services/notificationScheduler');
+
+setInterval(processPendingNotifications, 120000);
+
+// Check for expiring subscriptions twice daily (at 9 AM and 6 PM server time)
+setInterval(checkExpiringSubscriptions, 12 * 60 * 60 * 1000);
+
+// Process expired users once daily (at midnight server time)
+setInterval(processExpiredUsers, 24 * 60 * 60 * 1000);
+
+// Run checks immediately on startup
+setTimeout(checkExpiringSubscriptions, 30000); // After 30 seconds
+setTimeout(processExpiredUsers, 60000); // After 1 minute
 
 // Error handling middleware
 app.use(errorHandler);

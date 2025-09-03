@@ -371,6 +371,226 @@ exports.getAuditLogs = async (req, res) => {
   }
 };
 
+// Extend subscription
+exports.extendSubscription = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { days, type = 'manual' } = req.body;
+    
+    if (!days || days <= 0) {
+      return res.status(400).json({ error: 'Invalid number of days' });
+    }
+    
+    // Get user current status
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    let newEndDate;
+    
+    // Calculate new subscription end date
+    if (user.trial_end_date && user.trial_end_date > new Date()) {
+      // Extend from current trial end date
+      newEndDate = new Date(user.trial_end_date);
+    } else if (user.subscription_end_date && user.subscription_end_date > new Date()) {
+      // Extend from current subscription end date
+      newEndDate = new Date(user.subscription_end_date);
+    } else {
+      // Start from today
+      newEndDate = new Date();
+    }
+    
+    newEndDate.setDate(newEndDate.getDate() + parseInt(days));
+    
+    // Update user subscription
+    await db.query(
+      `UPDATE users SET 
+        subscription_end_date = $1,
+        is_paid = true,
+        is_active = true,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [newEndDate, userId]
+    );
+    
+    // Create subscription history record
+    await db.query(
+      `INSERT INTO subscription_history 
+       (user_id, extended_by_admin_id, days_added, extension_type, new_end_date)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, req.user.userId, days, type, newEndDate]
+    );
+    
+    // Log audit
+    await db.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        req.user.userId,
+        'EXTEND_SUBSCRIPTION',
+        'user',
+        userId,
+        JSON.stringify({ days, newEndDate: newEndDate.toISOString(), type }),
+        req.ip
+      ]
+    );
+    
+    // Restore user data if they were previously expired
+    const { restoreUserData } = require('../services/notificationScheduler');
+    const restoreResult = await restoreUserData(userId, req.user.userId);
+    
+    // Notify user via WebSocket if they're online
+    const websocketService = require('../services/websocket');
+    websocketService.notifyUser(userId, {
+      type: 'SUBSCRIPTION_EXTENDED',
+      message: `Your subscription has been extended by ${days} days until ${newEndDate.toDateString()}. ${restoreResult.success ? 'Your data has been restored!' : ''}`,
+      newEndDate: newEndDate.toISOString(),
+      dataRestored: restoreResult.success,
+      restoredItems: restoreResult.restoredItems || null
+    });
+    
+    res.json({
+      success: true,
+      message: `Subscription extended by ${days} days`,
+      newEndDate: newEndDate.toISOString(),
+      user: {
+        id: userId,
+        subscriptionEndDate: newEndDate,
+        isPaid: true,
+        isActive: true
+      },
+      dataRestoration: restoreResult
+    });
+  } catch (error) {
+    console.error('Extend subscription error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get subscription history
+exports.getSubscriptionHistory = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const history = await db.query(
+      `SELECT sh.*, 
+              u.username, u.full_name,
+              a.full_name as admin_name
+       FROM subscription_history sh
+       JOIN users u ON sh.user_id = u.id
+       LEFT JOIN users a ON sh.extended_by_admin_id = a.id
+       WHERE sh.user_id = $1
+       ORDER BY sh.created_at DESC`,
+      [userId]
+    );
+    
+    res.json({
+      success: true,
+      history: history.rows
+    });
+  } catch (error) {
+    console.error('Get subscription history error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Backup user data
+exports.backupUserData = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get user data
+    const userData = await db.query(
+      'SELECT * FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userData.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get user's vehicles
+    const vehicles = await db.query(
+      'SELECT * FROM vehicles WHERE operator_id = $1',
+      [userId]
+    );
+    
+    // Get user's settings
+    const settings = await db.query(
+      'SELECT * FROM settings WHERE user_id = $1',
+      [userId]
+    );
+    
+    const backupData = {
+      user: userData.rows[0],
+      vehicles: vehicles.rows,
+      settings: settings.rows,
+      backupDate: new Date().toISOString()
+    };
+    
+    // Store backup
+    await db.query(
+      `INSERT INTO user_backups (user_id, backup_data, created_by_admin_id)
+       VALUES ($1, $2, $3)`,
+      [userId, JSON.stringify(backupData), req.user.userId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'User data backed up successfully',
+      backup: backupData
+    });
+  } catch (error) {
+    console.error('Backup user data error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get users with expiring subscriptions
+exports.getExpiringSubscriptions = async (req, res) => {
+  try {
+    const { days = 3 } = req.query;
+    
+    const expiringSoon = await db.query(
+      `SELECT u.*, 
+              CASE 
+                WHEN u.trial_end_date > CURRENT_DATE THEN 
+                  EXTRACT(DAY FROM (u.trial_end_date - CURRENT_DATE))
+                WHEN u.subscription_end_date > CURRENT_DATE THEN 
+                  EXTRACT(DAY FROM (u.subscription_end_date - CURRENT_DATE))
+                ELSE 0
+              END as days_remaining
+       FROM users u
+       WHERE u.role = 'guest' 
+       AND u.is_active = true
+       AND (
+         (u.trial_end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '${days} days')
+         OR 
+         (u.subscription_end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '${days} days')
+       )
+       ORDER BY 
+         LEAST(
+           COALESCE(u.trial_end_date, '2099-12-31'::date), 
+           COALESCE(u.subscription_end_date, '2099-12-31'::date)
+         ) ASC`
+    );
+    
+    res.json({
+      success: true,
+      users: expiringSoon.rows
+    });
+  } catch (error) {
+    console.error('Get expiring subscriptions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {

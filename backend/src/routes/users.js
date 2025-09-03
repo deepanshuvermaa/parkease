@@ -14,5 +14,11 @@ router.put('/password', userController.changePassword);
 // Subscription
 router.get('/subscription', userController.getSubscription);
 router.post('/subscription/upgrade', userController.upgradeSubscription);
+router.get('/:userId/subscription-status', userController.getSubscriptionStatus);
+
+// Sync and notifications
+router.get('/sync-status', userController.syncUserStatus);
+router.get('/notifications', userController.getNotifications);
+router.post('/notifications/mark-read', userController.markNotificationsRead);
 
 module.exports = router;
