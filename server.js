@@ -25,6 +25,8 @@ const io = socketIO(server, {
   cors: {
     origin: [
       'http://localhost:3000',
+      'http://localhost:5000',
+      'http://127.0.0.1:5500',
       'https://deepanshuvermaa.github.io',
       process.env.ADMIN_PANEL_URL || 'https://deepanshuvermaa.github.io/quickbill-admin'
     ],
@@ -37,6 +39,8 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:5500',
     'https://deepanshuvermaa.github.io',
     process.env.ADMIN_PANEL_URL || 'https://deepanshuvermaa.github.io/quickbill-admin'
   ],
