@@ -1,0 +1,1 @@
+ C:\\Users\\Asus\\parkease_manager\\.dart_tool\\flutter_build\\1f1f3a3763b79b1f7d9fc2533c9568f6\\native_assets.yaml: 

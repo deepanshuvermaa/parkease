@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+<<<<<<< HEAD
       "Bash(dir:*)",
       "Bash(flutter pub:*)",
       "Bash(curl:*)",
@@ -34,6 +35,12 @@
       "Bash(git config:*)",
       "Bash(cat:*)",
       "Bash(npm ls:*)"
+=======
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Read(C:\\Users\\Asus\\Quickbill\\admin-panel/**)",
+      "Bash(grep:*)",
+      "Bash(git checkout:*)"
+>>>>>>> backend-deployment
     ],
     "deny": [],
     "ask": []
